@@ -18,6 +18,8 @@ server(T) ->
   receive
     {insert,K,V} ->
       server(insert(K,V,T));
+    {delete,K} ->
+      server(delete(K,T));
     {lookup,K,Pid} ->
       Pid ! lookup(K,T),
       server(T)
@@ -38,6 +40,24 @@ insert(K,V,{node,L,KN,_VN,R}) ->
       insert(K,V,R)
   end.
 
+delete(_K,leaf) ->
+  leaf;
+delete(K,{node,L,KN,VN,R}) ->
+  if K<KN ->
+      {node,delete(K,L),KN,VN,R};
+     K==KN ->
+      merge(L,R);
+     K>KN ->
+      {node,L,KN,VN,delete(K,R)}
+  end.
+
+merge(leaf,R) ->
+  R;
+merge(L,leaf) ->
+  L;
+merge({node,LL,LK,LV,LR},{node,RL,RK,RV,RR}) ->
+  {node,LL,LK,LV,{node,merge(RL,LR),RK,RV,RR}}.
+
 lookup(_,leaf) ->
   false;
 lookup(K,{node,L,KN,VN,R}) ->
@@ -57,13 +77,26 @@ initial_state() ->
 %% insert
 
 insert(K,V) ->
-  kv ! {insert,K,V}.
+  kv ! {insert,K,V},
+  ok.
 
 insert_args(_) ->
   [key(),val()].
 
 insert_next(S,_,[K,V]) ->
   lists:keystore(K,1,S,{K,V}).
+
+%% delete
+
+delete(K) ->
+  kv ! {delete,K},
+  ok.
+
+delete_args(_) ->
+  [key()].
+
+delete_next(S,_,[K]) ->
+  lists:keydelete(K,1,S).
 
 %% lookup
 
@@ -90,12 +123,13 @@ val() ->
 %% Property
 
 prop_kv() ->
-  ?FORALL(Cmds, commands(?MODULE),
-          begin
-            start(),
-            {H, S, Res} = run_commands(?MODULE,Cmds),
-            pretty_commands(?MODULE, Cmds, {H, S, Res},
-                            aggregate(command_names(Cmds),
-                                      ?IMPLIES(Res/=precondition,
-                                               Res == ok)))
-          end).
+  numtests(1000,
+           ?FORALL(Cmds, commands(?MODULE),
+                   begin
+                     start(),
+                     {H, S, Res} = run_commands(?MODULE,Cmds),
+                     pretty_commands(?MODULE, Cmds, {H, S, Res},
+                                     aggregate(command_names(Cmds),
+                                               ?IMPLIES(Res/=precondition,
+                                                        Res == ok)))
+                   end)).
