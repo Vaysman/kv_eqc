@@ -124,7 +124,7 @@ val() ->
 %% Property
 
 prop_kv() ->
-  numtests(1000,
+  numtests(10000,
            ?FORALL(Cmds, commands(?MODULE),
                    begin
                      start(),
