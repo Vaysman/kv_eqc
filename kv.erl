@@ -57,7 +57,7 @@ merge(leaf,R) ->
 merge(L,leaf) ->
   L;
 merge({node,LL,LK,LV,LR},{node,RL,RK,RV,RR}) ->
-  {node,LL,LK,LV,{node,merge(RL,LR),RK,RV,RR}}.
+  {node,LL,LK,LV,{node,merge(LR, RL),RK,RV,RR}}.
 
 lookup(_,leaf) ->
   false;
